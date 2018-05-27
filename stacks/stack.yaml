@@ -1,0 +1,248 @@
+---
+AWSTemplateFormatVersion: '2010-09-09'
+Description: RDS Stack
+# prerequisites:
+# db param grp needs to be created
+
+# Input parameters for the template
+Parameters:
+  Environment:
+    Description: The Environment
+    Type: String
+    AllowedValues:
+      - INTEG
+      - PROD
+    Default: INTEG
+    ConstraintDescription: must select a valid Environment
+  Region:
+    Description: The AWS Region
+    Type: String
+    AllowedValues:
+      - USEAST1
+      - USWEST1
+    Default: USWEST1
+    ConstraintDescription: must select a valid aws Region
+  DNS:
+    NoEcho: false
+    Description: The url endpoint
+    Type: String
+    MinLength: 1
+    MaxLength: 16
+    AllowedPattern: "[a-zA-Z][a-z0-9]*"
+    ConstraintDescription: must begin with a letter and contain only alphanumeric characters.
+
+Mappings:
+  USWEST1:
+    COMMON:
+      ImageId: ami-2cbda54c
+      Name: US-WEST
+      HostedZoneId: Z124QYXYKBFD87
+    INTEG:
+      VpcId: vpc-87c9a2e0
+      JenkinsSecGrpId: sg-7b9d5703
+      #SSLCert: "arn:aws:acm:us-east-1:134955911718:certificate/52f00d2d-2edc-46b0-aaea-0c384154e47f"
+      SubnetIdPrivateA: subnet-965216cd
+      SubnetIdPrivateB: subnet-e1654e86
+      SubnetIdPublicA: subnet-2c531777
+      SubnetIdPublicB: subnet-bb7a51dc
+      KeyName: sample-ssh-key
+      WebInstanceType: t2.micro
+      WebInstanceRootVolumeSize: 50
+    PROD:
+      VpcId: vpc-817a13e4
+      JenkinsSecGrpId: sg-7b9d5703
+      #SSLCert: "arn:aws:acm:us-east-1:134955911718:certificate/52f00d2d-2edc-46b0-aaea-0c384154e47f"
+      SubnetIdPrivateA: subnet-965216cd
+      SubnetIdPrivateB: subnet-e1654e86
+      SubnetIdPublicA: subnet-2c531777
+      SubnetIdPublicB: subnet-bb7a51dc
+      KeyName: prod-ssh-key
+      WebInstanceType: m4.large
+      WebInstanceRootVolumeSize: 50
+
+Resources:
+
+  # Security Group for the Web EC2 Instances
+  WebInstanceSG:
+    Type: "AWS::EC2::SecurityGroup"
+    Properties:
+      GroupDescription: !Join [ "-", [ !Ref Environment, !Join [ "-",  [ !FindInMap [ !Ref Region, COMMON, Name ], "WEB Sec Grp" ] ] ] ]
+      VpcId: !FindInMap [ !Ref Region, !Ref Environment, VpcId ]
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          SourceSecurityGroupId: !FindInMap [ !Ref Region, !Ref Environment, JenkinsSecGrpId ]
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          SourceSecurityGroupId: !Ref WebELBSG
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          SourceSecurityGroupId: !Ref WebELBSG
+      Tags:
+        - Key: "Name"
+          Value: !Join [ "-", [ !Ref Environment, !Join [ "-",  [ !FindInMap [ !Ref Region, COMMON, Name ], "WEB-EC2-SEC-GRP" ] ] ] ]  
+  # Security Group for the Web ELB
+  WebELBSG:
+    Type: "AWS::EC2::SecurityGroup"
+    Properties:
+      GroupDescription: !Join [ "-", [ !Ref Environment, !Join [ "-",  [ !FindInMap [ !Ref Region, COMMON, Name ], "WEB ELB Sec Grp" ] ] ] ]
+      VpcId: !FindInMap [ !Ref Region, !Ref Environment, VpcId ]
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          CidrIp: 0.0.0.0/0
+      Tags:
+        - Key: "Name"
+          Value: !Join [ "-", [ !Ref Environment, !Join [ "-",  [ !FindInMap [ !Ref Region, COMMON, Name ], "WEB-ELB-SEC-GRP" ] ] ] ]
+
+  # Web EC2 Instance 01
+  WebEC201:
+    Type: "AWS::EC2::Instance"
+    Properties:
+      KeyName: !FindInMap [ !Ref Region, !Ref Environment, KeyName ]
+      ImageId: !FindInMap [ !Ref Region, COMMON, ImageId ]
+      BlockDeviceMappings:
+        - DeviceName: "/dev/sda1"
+          Ebs:
+            VolumeSize : !FindInMap [ !Ref Region, !Ref Environment, WebInstanceRootVolumeSize ]
+      InstanceType: !FindInMap [ !Ref Region, !Ref Environment, WebInstanceType ]
+      Monitoring: true
+      #IamInstanceProfile: !Ref WebProfile
+      NetworkInterfaces: 
+        - AssociatePublicIpAddress: false
+          DeleteOnTermination: true
+          DeviceIndex: "0"
+          SubnetId: !FindInMap [ !Ref Region, !Ref Environment, SubnetIdPrivateA ]
+          GroupSet: 
+            - !Ref WebInstanceSG
+      Tags:
+        - Key: "Name"
+          Value: !Join [ "-", [ !Ref Environment, !Join [ "-",  [ !FindInMap [ !Ref Region, COMMON, Name ], "WEB-01" ] ] ] ]
+  # Web EC2 Instance 02
+  WebEC202:
+    Type: "AWS::EC2::Instance"
+    Properties:
+      KeyName: !FindInMap [ !Ref Region, !Ref Environment, KeyName ]
+      ImageId: !FindInMap [ !Ref Region, COMMON, ImageId ]
+      BlockDeviceMappings:
+        - DeviceName: "/dev/sda1"
+          Ebs:
+            VolumeSize : !FindInMap [ !Ref Region, !Ref Environment, WebInstanceRootVolumeSize ]
+      InstanceType: !FindInMap [ !Ref Region, !Ref Environment, WebInstanceType ]
+      Monitoring: true
+      #IamInstanceProfile: !Ref WebProfile
+      NetworkInterfaces: 
+        - AssociatePublicIpAddress: false
+          DeleteOnTermination: true
+          DeviceIndex: "0"
+          SubnetId: !FindInMap [ !Ref Region, !Ref Environment, SubnetIdPrivateB ]
+          GroupSet: 
+            - !Ref WebInstanceSG
+      Tags:
+        - Key: "Name"
+          Value: !Join [ "-", [ !Ref Environment, !Join [ "-",  [ !FindInMap [ !Ref Region, COMMON, Name ], "WEB-02" ] ] ] ]
+
+  # Classic ELB for Web Layer
+  WebELB: 
+    Type: "AWS::ElasticLoadBalancing::LoadBalancer"
+    Properties: 
+      Listeners:
+        #- InstancePort: '443'
+        #  LoadBalancerPort: '443'
+        #  Protocol: "HTTPS"
+        #  SSLCertificateId: !FindInMap [ !Ref Region, !Ref Environment, SSLCert ]
+        - InstancePort: 80
+          LoadBalancerPort: 80
+          Protocol: "HTTP"
+      HealthCheck:
+        Target: "HTTP:80/"
+        Timeout:  5
+        Interval: 10
+        UnhealthyThreshold: 2
+        HealthyThreshold: 3
+      ConnectionSettings:
+        IdleTimeout: 60
+      CrossZone: true
+      ConnectionDrainingPolicy:
+        Enabled: true
+        Timeout: 120
+      SecurityGroups:
+        - !Ref WebELBSG
+      Subnets: 
+        - !FindInMap [ !Ref Region, !Ref Environment, SubnetIdPublicA ]
+        - !FindInMap [ !Ref Region, !Ref Environment, SubnetIdPublicB ]
+      Instances:
+        - !Ref WebEC201
+        - !Ref WebEC202
+      Tags: 
+        - Key: "Name"
+          Value: !Join [ "-", [ !Ref Environment, !Join [ "-",  [ !FindInMap [ !Ref Region, COMMON, Name ], "WEB" ] ] ] ]
+
+  # R53 dns endpoint
+  #R53DnsEndpoint:
+  #  Type: AWS::Route53::RecordSet
+  #  Properties:
+  #    Comment: "DNS for Aurora Cluster."
+  #    HostedZoneId: 
+  #      !FindInMap [ !Ref Region, COMMON, HostedZoneId ]
+  #    Name: 
+  #      Ref: DNS
+  #    ResourceRecords:
+  #      - !GetAtt WebELB.DNSName
+  #    TTL: 100
+  #    Type: CNAME
+
+  # WEB ELB Unhealthy Warning Notification
+  WEBELBUnhealthyWarningNotification:
+    Type: "AWS::CloudWatch::Alarm"
+    Properties:
+      AlarmName: !Join [ "-", [ !Ref Environment, !Join [ "-",  [ !FindInMap [ !Ref Region, COMMON, Name ], "WEB-ELB-UNHEALTHY-WARNING-ALERT" ] ] ] ]
+      ActionsEnabled: true
+      AlarmDescription: "Send an email if the WEB ELB has less than 2 healthy hosts for 5 minutes"
+      MetricName: "HealthyHostCount"
+      Namespace: "AWS/ELB"
+      Statistic: Minimum
+      Period: 60
+      EvaluationPeriods: 5 # 2 periods of 60 seconds
+      ComparisonOperator: LessThanThreshold
+      Threshold: 2 # Count of Ec2 less than 1
+      AlarmActions: 
+        - "arn:aws:sns:us-west-1:991583677268:db_team"
+      #  - !Ref ELBUnhealthyWarningNotificationTopic
+      Dimensions:
+        - Name: LoadBalancerName
+          Value: !Ref WebELB
+
+  # SNS Topic
+  #ELBUnhealthyWarningNotificationTopic:
+  #  Type: "AWS::SNS::Topic"
+  #  Properties:
+  #    Subscription:
+  #      - Endpoint: "user@gmail.com"
+  #        Protocol: email
+
+Outputs:
+  WEB01IP:
+    Description: WebEC2.PrivateIp
+    Value: !GetAtt WebEC201.PrivateIp
+
+  WEB02IP:
+    Description: WebEC2.PrivateIp
+    Value: !GetAtt WebEC202.PrivateIp
+
+  WEBELBDNS:
+    Description: WebELB.DNSName
+    Value: !GetAtt WebELB.DNSName
+
+  #R53DnsEndpoint:
+  #  Description: AWS route53 DNS
+  #  Value: 
+  #    Ref: R53DnsEndpoint

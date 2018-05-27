@@ -1,0 +1,69 @@
+- hosts: web01 web02
+  gather_facts: False 
+  vars:
+    group_name: flask
+    user1: flask
+
+  tasks:
+    - name: Create group
+      group:  
+        name: "{{ group_name }}"
+        state: present
+      become: yes
+
+    - name: Add the user with a specific uid and a primary group
+      user:
+        name: "{{ user1 }}"
+        comment: "{{ user1 }}"
+        group: "{{ group_name }}"
+        shell: /bin/bash
+        home: /home/{{ user1 }}
+        create_home: yes
+      become: yes
+
+    - name: "Adding pub key for '{{ user1 }}'"
+      authorized_key:
+        user: "{{ user1 }}"
+        key: "{{ item }}"
+      with_file:
+        - /home/ubuntu/.ssh/authorized_keys
+      become: yes
+
+    - name: Run the equivalent of "apt-get update" as a separate step
+      apt:
+        update_cache: yes
+      become: yes
+
+    - name: Install apache service but avoid starting it immediately
+      apt: name=apache2 state=present
+      environment:
+        RUNLEVLEL: 1
+      become: yes
+
+    - name: Install the package "python-pip"
+      apt:
+        name: python-pip
+        state: present
+      become: yes
+
+    - name: Install the package "libapache2-mod-wsgi"
+      apt:
+        name: libapache2-mod-wsgi
+        state: present
+      become: yes
+
+    - name: Install Flask using pip
+      pip:
+        name: Flask
+        version: 1.0.2
+      become: yes
+
+    - name: Create Flask app parent directory
+      file:
+        path: /var/www/flask
+        state: directory
+        owner: "{{ user1 }}"
+        group: "{{ group_name }}"
+        mode: 0755
+      become: yes
+
