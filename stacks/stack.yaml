@@ -281,11 +281,11 @@ Resources:
 
 Outputs:
   WEB01IP:
-    Description: WebEC2.PrivateIp
+    Description: WebEC201.PrivateIp
     Value: !GetAtt WebEC201.PrivateIp
 
   WEB02IP:
-    Description: WebEC2.PrivateIp
+    Description: WebEC202.PrivateIp
     Value: !GetAtt WebEC202.PrivateIp
 
   WEBELBDNS:

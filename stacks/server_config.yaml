@@ -26,10 +26,10 @@
         user: "{{ user1 }}"
         key: "{{ item }}"
       with_file:
-        - /home/ubuntu/.ssh/authorized_keys
+        - /var/lib/jenkins/.ssh/flask_id_rsa.pub
       become: yes
 
-    - name: Run the equivalent of "apt-get update" as a separate step
+    - name: Run "apt-get update" as a separate step
       apt:
         update_cache: yes
       become: yes
@@ -64,6 +64,5 @@
         state: directory
         owner: "{{ user1 }}"
         group: "{{ group_name }}"
-        mode: 0755
+        mode: 0777
       become: yes
-
