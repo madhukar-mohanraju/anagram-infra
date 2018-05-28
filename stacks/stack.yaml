@@ -257,7 +257,7 @@ Resources:
           Value: 
             Ref: WebEC201
       AlarmActions:
-        - - "arn:aws:sns:us-west-1:991583677268:db_team"
+        - "arn:aws:sns:us-west-1:991583677268:db_team"
 
   WebEC202CPUUtilizationAlarm:
     Type: AWS::CloudWatch::Alarm
@@ -277,7 +277,7 @@ Resources:
           Value: 
             Ref: WebEC202
       AlarmActions:
-        - - "arn:aws:sns:us-west-1:991583677268:db_team"
+        - "arn:aws:sns:us-west-1:991583677268:db_team"
 
 Outputs:
   WEB01IP:
