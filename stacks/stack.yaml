@@ -22,13 +22,12 @@ Parameters:
       - USWEST1
     Default: USWEST1
     ConstraintDescription: must select a valid aws Region
-  DNS:
+  DnsEndpoint:
     NoEcho: false
     Description: The url endpoint
     Type: String
     MinLength: 1
-    MaxLength: 16
-    AllowedPattern: "[a-zA-Z][a-z0-9]*"
+    MaxLength: 32
     ConstraintDescription: must begin with a letter and contain only alphanumeric characters.
 
 Mappings:
@@ -190,11 +189,11 @@ Resources:
   #R53DnsEndpoint:
   #  Type: AWS::Route53::RecordSet
   #  Properties:
-  #    Comment: "DNS for Aurora Cluster."
+  #    Comment: "dns endpoint"
   #    HostedZoneId: 
   #      !FindInMap [ !Ref Region, COMMON, HostedZoneId ]
   #    Name: 
-  #      Ref: DNS
+  #      Ref: DnsEndpoint
   #    ResourceRecords:
   #      - !GetAtt WebELB.DNSName
   #    TTL: 100

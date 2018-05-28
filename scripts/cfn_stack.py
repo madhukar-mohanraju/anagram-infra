@@ -89,7 +89,7 @@ def drop_cfn_stack(stack_name, region):
 
 #
 #
-def executeCfnTemplate(env, stack_name, region, url):
+def executeCfnTemplate(env, stack_name, region, dns):
     
     try:
         stack_status = getCfnStackStatus(stack_name, region)
@@ -112,8 +112,8 @@ def executeCfnTemplate(env, stack_name, region, url):
                         'ParameterValue': region.replace('-','').upper(),
                     },
                     {
-                        'ParameterKey': 'DNS',
-                        'ParameterValue': url,
+                        'ParameterKey': 'DnsEndpoint',
+                        'ParameterValue': dns,
                     },                            
                 ],
             )        
@@ -149,7 +149,7 @@ if __name__ == '__main__':
     parser.add_argument('--env', help='environment', choices=['test', 'integ', 'prod'], required=True)
     parser.add_argument('--stack_name', help='cfn stack name', required=True)
     parser.add_argument('--region', help='cluster region', required=True)
-    parser.add_argument('--url', help='route53 aurora url', required=False)
+    parser.add_argument('--dns', help='route53 dns endpoint', required=False)
     #parser.add_argument('--tags', help='tags in json string', type=json.loads, required=False)
     parser.add_argument('--workspace', help='workspace directory', required=True)
     parser.add_argument('--delete', help='delete stack', required=False, action="store_true")
@@ -159,13 +159,13 @@ if __name__ == '__main__':
     env = args.env.upper()
     stack_name = args.stack_name
     region = args.region
-    r53_url = args.url
+    r53_dns = args.dns
     workspace_dir = args.workspace
     delete_flag = args.delete
 
     if not delete_flag:
         log("info", "Creating stack: <{0}> in region: <{1}>".format(stack_name, region))
-        return_status,return_err = executeCfnTemplate(env, stack_name, region, r53_url)
+        return_status,return_err = executeCfnTemplate(env, stack_name, region, r53_dns)
         if not return_status:
             log("err", "Creating stack: Failed\n{0}".format(return_err))
         else:
