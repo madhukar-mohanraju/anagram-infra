@@ -10,9 +10,10 @@ Parameters:
     Description: The Environment
     Type: String
     AllowedValues:
+      - TEST
       - INTEG
       - PROD
-    Default: INTEG
+    Default: TEST
     ConstraintDescription: must select a valid Environment
   Region:
     Description: The AWS Region
@@ -36,6 +37,17 @@ Mappings:
       ImageId: ami-2cbda54c
       Name: US-WEST
       HostedZoneId: Z124QYXYKBFD87
+    TEST:
+      VpcId: vpc-87c9a2e0
+      JenkinsSecGrpId: sg-7b9d5703
+      #SSLCert: "arn:aws:acm:us-east-1:134955911718:certificate/52f00d2d-2edc-46b0-aaea-0c384154e47f"
+      SubnetIdPrivateA: subnet-965216cd
+      SubnetIdPrivateB: subnet-e1654e86
+      SubnetIdPublicA: subnet-2c531777
+      SubnetIdPublicB: subnet-bb7a51dc
+      KeyName: sample-ssh-key
+      WebInstanceType: t2.micro
+      WebInstanceRootVolumeSize: 50      
     INTEG:
       VpcId: vpc-87c9a2e0
       JenkinsSecGrpId: sg-7b9d5703
@@ -227,6 +239,45 @@ Resources:
   #    Subscription:
   #      - Endpoint: "user@gmail.com"
   #        Protocol: email
+  WebEC201CPUUtilizationAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: 
+        !Join [ "-", [ !Ref Environment, !Join [ "-",  [ !FindInMap [ !Ref Region, COMMON, Name ], "WEB01-EC2-CPU-ALERT" ] ] ] ]
+      ActionsEnabled: true
+      Namespace: "AWS/RDS"
+      MetricName: "CPUUtilization"
+      Statistic: "Average"
+      Period: 60
+      EvaluationPeriods: 2
+      Threshold: 70
+      ComparisonOperator: "GreaterThanThreshold"
+      Dimensions:
+        - Name: "WebServerName"
+          Value: 
+            Ref: WebEC201
+      AlarmActions:
+        - - "arn:aws:sns:us-west-1:991583677268:db_team"
+
+  WebEC202CPUUtilizationAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: 
+        !Join [ "-", [ !Ref Environment, !Join [ "-",  [ !FindInMap [ !Ref Region, COMMON, Name ], "WEB02-EC2-CPU-ALERT" ] ] ] ]
+      ActionsEnabled: true
+      Namespace: "AWS/RDS"
+      MetricName: "CPUUtilization"
+      Statistic: "Average"
+      Period: 60
+      EvaluationPeriods: 2
+      Threshold: 70
+      ComparisonOperator: "GreaterThanThreshold"
+      Dimensions:
+        - Name: "WebServerName"
+          Value: 
+            Ref: WebEC202
+      AlarmActions:
+        - - "arn:aws:sns:us-west-1:991583677268:db_team"
 
 Outputs:
   WEB01IP:
