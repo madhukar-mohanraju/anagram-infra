@@ -1,4 +1,4 @@
-- hosts: web01 web02
+- hosts: webservers
   gather_facts: False 
   vars:
     group_name: flask
@@ -21,7 +21,7 @@
         create_home: yes
       become: yes
 
-    - name: "Adding pub key for '{{ user1 }}'"
+    - name: Adding pub key for '{{ user1 }}'
       authorized_key:
         user: "{{ user1 }}"
         key: "{{ item }}"
