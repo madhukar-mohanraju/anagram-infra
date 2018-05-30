@@ -1,5 +1,6 @@
 - hosts: webservers
-  gather_facts: False 
+  gather_facts: False
+  become: yes
   vars:
     group_name: flask
     user1: flask
@@ -9,7 +10,7 @@
       group:  
         name: "{{ group_name }}"
         state: present
-      become: yes
+      
 
     - name: Add the user with a specific uid and a primary group
       user:
@@ -19,7 +20,6 @@
         shell: /bin/bash
         home: /home/{{ user1 }}
         create_home: yes
-      become: yes
 
     - name: Adding pub key for '{{ user1 }}'
       authorized_key:
@@ -27,36 +27,38 @@
         key: "{{ item }}"
       with_file:
         - /var/lib/jenkins/.ssh/flask_id_rsa.pub
-      become: yes
 
     - name: Run "apt-get update" as a separate step
       apt:
         update_cache: yes
-      become: yes
 
     - name: Install apache service but avoid starting it immediately
       apt: name=apache2 state=present
       environment:
         RUNLEVLEL: 1
-      become: yes
 
     - name: Install the package "python-pip"
       apt:
         name: python-pip
         state: present
-      become: yes
 
     - name: Install the package "libapache2-mod-wsgi"
       apt:
         name: libapache2-mod-wsgi
         state: present
-      become: yes
 
     - name: Install Flask using pip
       pip:
         name: Flask
         version: 1.0.2
-      become: yes
+
+    - name: Install pytest using pip
+      pip:
+        name: pytest
+
+    - name: Install coverage using pip
+      pip:
+        name: coverage
 
     - name: Create Flask app parent directory
       file:
@@ -65,4 +67,3 @@
         owner: "{{ user1 }}"
         group: "{{ group_name }}"
         mode: 0777
-      become: yes
