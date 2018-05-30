@@ -55,10 +55,12 @@
     - name: Install pytest using pip
       pip:
         name: pytest
+      when: env == "test"
 
     - name: Install coverage using pip
       pip:
         name: coverage
+      when: env == "test"
 
     - name: Create Flask app parent directory
       file:
@@ -66,4 +68,4 @@
         state: directory
         owner: "{{ user1 }}"
         group: "{{ group_name }}"
-        mode: 0777
+        mode: 0755
