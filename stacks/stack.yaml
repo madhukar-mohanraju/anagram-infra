@@ -71,6 +71,10 @@ Mappings:
       WebInstanceType: m4.large
       WebInstanceRootVolumeSize: 50
 
+Conditions:
+  CheckProdEnv:
+    !Equals [ Ref: Environment, "PROD" ]
+
 Resources:
 
   # Security Group for the Web EC2 Instances
@@ -94,7 +98,8 @@ Resources:
           SourceSecurityGroupId: !Ref WebELBSG
       Tags:
         - Key: "Name"
-          Value: !Join [ "-", [ !Ref Environment, !Join [ "-",  [ !FindInMap [ !Ref Region, COMMON, Name ], "WEB-EC2-SEC-GRP" ] ] ] ]  
+          Value: !Join [ "-", [ !Ref Environment, !Join [ "-",  [ !FindInMap [ !Ref Region, COMMON, Name ], "WEB-EC2-SEC-GRP" ] ] ] ]
+
   # Security Group for the Web ELB
   WebELBSG:
     Type: "AWS::EC2::SecurityGroup"
@@ -162,54 +167,103 @@ Resources:
           Value: !Join [ "-", [ !Ref Environment, !Join [ "-",  [ !FindInMap [ !Ref Region, COMMON, Name ], "WEB-02" ] ] ] ]
 
   # Classic ELB for Web Layer
-  WebELB: 
-    Type: "AWS::ElasticLoadBalancing::LoadBalancer"
-    Properties: 
-      Listeners:
+  #WebELB: 
+  #  Type: "AWS::ElasticLoadBalancing::LoadBalancer"
+  #  Properties: 
+  #    Listeners:
         #- InstancePort: '443'
         #  LoadBalancerPort: '443'
         #  Protocol: "HTTPS"
         #  SSLCertificateId: !FindInMap [ !Ref Region, !Ref Environment, SSLCert ]
-        - InstancePort: 80
-          LoadBalancerPort: 80
-          Protocol: "HTTP"
-      HealthCheck:
-        Target: "HTTP:80/"
-        Timeout:  5
-        Interval: 10
-        UnhealthyThreshold: 2
-        HealthyThreshold: 3
-      ConnectionSettings:
-        IdleTimeout: 60
-      CrossZone: true
-      ConnectionDrainingPolicy:
-        Enabled: true
-        Timeout: 120
+  #      - InstancePort: 80
+  #        LoadBalancerPort: 80
+  #        Protocol: "HTTP"
+  #    HealthCheck:
+  #      Target: "HTTP:80/"
+  #      Timeout:  5
+  #      Interval: 10
+  #      UnhealthyThreshold: 2
+  #      HealthyThreshold: 3
+  #    ConnectionSettings:
+  #      IdleTimeout: 60
+  #    CrossZone: true
+  #    ConnectionDrainingPolicy:
+  #      Enabled: true
+  #      Timeout: 120
+  #    SecurityGroups:
+  #      - !Ref WebELBSG
+  #    Subnets: 
+  #      - !FindInMap [ !Ref Region, !Ref Environment, SubnetIdPublicA ]
+  #      - !FindInMap [ !Ref Region, !Ref Environment, SubnetIdPublicB ]
+  #    Instances:
+  #      - !Ref WebEC201
+  #      - !Ref WebEC202
+  #    Tags: 
+  #      - Key: "Name"
+  #        Value: !Join [ "-", [ !Ref Environment, !Join [ "-",  [ !FindInMap [ !Ref Region, COMMON, Name ], "WEB" ] ] ] ]
+
+  # Application LB for Web Layer
+  WebELB:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Properties:
+      Scheme: internet-facing
       SecurityGroups:
         - !Ref WebELBSG
-      Subnets: 
+      Subnets:
         - !FindInMap [ !Ref Region, !Ref Environment, SubnetIdPublicA ]
-        - !FindInMap [ !Ref Region, !Ref Environment, SubnetIdPublicB ]
-      Instances:
-        - !Ref WebEC201
-        - !Ref WebEC202
-      Tags: 
+        - !FindInMap [ !Ref Region, !Ref Environment, SubnetIdPublicB ]  
+      Type: application
+      Tags:
         - Key: "Name"
-          Value: !Join [ "-", [ !Ref Environment, !Join [ "-",  [ !FindInMap [ !Ref Region, COMMON, Name ], "WEB" ] ] ] ]
+          Value: !Join [ "-", [ !Ref Environment, !Join [ "-",  [ !FindInMap [ !Ref Region, COMMON, Name ], "WEB-ALB" ] ] ] ]
+
+  WebELBHTTPListener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties: 
+      DefaultActions:
+        - Type: forward
+          TargetGroupArn:
+            !Ref WebELBTargetGroup
+      LoadBalancerArn: 
+        !Ref WebELB
+      Port: 80
+      Protocol: HTTP
+
+  WebELBTargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      HealthCheckIntervalSeconds: 10
+      HealthCheckProtocol: HTTP
+      HealthCheckTimeoutSeconds: 5
+      HealthyThresholdCount: 3
+      UnhealthyThresholdCount: 2
+      HealthCheckPort: 80
+      Matcher:
+        HttpCode: '200'
+      Protocol: HTTP
+      Port: 80
+      Targets:
+      - Id:
+          !Ref WebEC201
+      - Id:
+          !Ref WebEC202
+      VpcId:
+        !FindInMap [ !Ref Region, !Ref Environment, VpcId ]
 
   # R53 dns endpoint
-  #R53DnsEndpoint:
-  #  Type: AWS::Route53::RecordSet
-  #  Properties:
-  #    Comment: "dns endpoint"
-  #    HostedZoneId: 
-  #      !FindInMap [ !Ref Region, COMMON, HostedZoneId ]
-  #    Name: 
-  #      Ref: DnsEndpoint
-  #    ResourceRecords:
-  #      - !GetAtt WebELB.DNSName
-  #    TTL: 100
-  #    Type: CNAME
+  R53DnsEndpoint:
+    Type: AWS::Route53::RecordSet
+    Condition: CheckProdEnv
+    Properties:
+      Comment: "dns endpoint"
+      HostedZoneId: 
+        !FindInMap [ !Ref Region, COMMON, HostedZoneId ]
+      Name: 
+        Ref: DnsEndpoint
+      ResourceRecords:
+        - !GetAtt WebELB.DNSName
+      TTL: 100
+      Type: CNAME
 
   # WEB ELB Unhealthy Warning Notification
   WEBELBUnhealthyWarningNotification:
@@ -292,7 +346,8 @@ Outputs:
     Description: WebELB.DNSName
     Value: !GetAtt WebELB.DNSName
 
-  #R53DnsEndpoint:
-  #  Description: AWS route53 DNS
-  #  Value: 
-  #    Ref: R53DnsEndpoint
+  R53DnsEndpoint:
+    Description: AWS route53 DNS
+    Condition: CheckProdEnv
+    Value: 
+      Ref: R53DnsEndpoint
