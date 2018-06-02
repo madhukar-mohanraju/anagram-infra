@@ -36,37 +36,37 @@ Mappings:
     COMMON:
       ImageId: ami-2cbda54c
       Name: US-WEST
-      HostedZoneId: Z124QYXYKBFD87
+      HostedZoneId: Z2CINTWO5K698Y
     TEST:
-      VpcId: vpc-87c9a2e0
-      JenkinsSecGrpId: sg-7b9d5703
+      VpcId: vpc-57fd8230
+      JenkinsSecGrpId: sg-2c11b154
       #SSLCert: "arn:aws:acm:us-east-1:134955911718:certificate/52f00d2d-2edc-46b0-aaea-0c384154e47f"
-      SubnetIdPrivateA: subnet-965216cd
-      SubnetIdPrivateB: subnet-e1654e86
-      SubnetIdPublicA: subnet-2c531777
-      SubnetIdPublicB: subnet-bb7a51dc
+      SubnetIdPrivateA: subnet-1bb5867c
+      SubnetIdPrivateB: subnet-a33e71f8
+      SubnetIdPublicA: subnet-27b48740
+      SubnetIdPublicB: subnet-323a7569
       KeyName: sample-ssh-key
       WebInstanceType: t2.micro
-      WebInstanceRootVolumeSize: 50      
+      WebInstanceRootVolumeSize: 20      
     INTEG:
-      VpcId: vpc-87c9a2e0
-      JenkinsSecGrpId: sg-7b9d5703
+      VpcId: vpc-57fd8230
+      JenkinsSecGrpId: sg-2c11b154
       #SSLCert: "arn:aws:acm:us-east-1:134955911718:certificate/52f00d2d-2edc-46b0-aaea-0c384154e47f"
-      SubnetIdPrivateA: subnet-965216cd
-      SubnetIdPrivateB: subnet-e1654e86
-      SubnetIdPublicA: subnet-2c531777
-      SubnetIdPublicB: subnet-bb7a51dc
+      SubnetIdPrivateA: subnet-1bb5867c
+      SubnetIdPrivateB: subnet-a33e71f8
+      SubnetIdPublicA: subnet-27b48740
+      SubnetIdPublicB: subnet-323a7569
       KeyName: sample-ssh-key
       WebInstanceType: t2.micro
       WebInstanceRootVolumeSize: 50
     PROD:
-      VpcId: vpc-817a13e4
-      JenkinsSecGrpId: sg-7b9d5703
+      VpcId: vpc-57fd8230
+      JenkinsSecGrpId: sg-2c11b154
       #SSLCert: "arn:aws:acm:us-east-1:134955911718:certificate/52f00d2d-2edc-46b0-aaea-0c384154e47f"
-      SubnetIdPrivateA: subnet-965216cd
-      SubnetIdPrivateB: subnet-e1654e86
-      SubnetIdPublicA: subnet-2c531777
-      SubnetIdPublicB: subnet-bb7a51dc
+      SubnetIdPrivateA: subnet-1bb5867c
+      SubnetIdPrivateB: subnet-a33e71f8
+      SubnetIdPublicA: subnet-27b48740
+      SubnetIdPublicB: subnet-323a7569
       KeyName: prod-ssh-key
       WebInstanceType: m4.large
       WebInstanceRootVolumeSize: 50
@@ -265,6 +265,14 @@ Resources:
       TTL: 100
       Type: CNAME
 
+  # SNS Topic
+  SNSNotificationTopic:
+    Type: "AWS::SNS::Topic"
+    Properties:
+      Subscription:
+        - Endpoint: "user@gmail.com"
+          Protocol: email
+
   # WEB ELB Unhealthy Warning Notification
   WEBELBUnhealthyWarningNotification:
     Type: "AWS::CloudWatch::Alarm"
@@ -280,19 +288,11 @@ Resources:
       ComparisonOperator: LessThanThreshold
       Threshold: 2 # Count of Ec2 less than 1
       AlarmActions: 
-        - "arn:aws:sns:us-west-1:991583677268:db_team"
-      #  - !Ref ELBUnhealthyWarningNotificationTopic
+        - !Ref SNSNotificationTopic
       Dimensions:
         - Name: LoadBalancerName
           Value: !Ref WebELB
-
-  # SNS Topic
-  #ELBUnhealthyWarningNotificationTopic:
-  #  Type: "AWS::SNS::Topic"
-  #  Properties:
-  #    Subscription:
-  #      - Endpoint: "user@gmail.com"
-  #        Protocol: email
+  
   WebEC201CPUUtilizationAlarm:
     Type: AWS::CloudWatch::Alarm
     Properties:
@@ -311,7 +311,7 @@ Resources:
           Value: 
             Ref: WebEC201
       AlarmActions:
-        - "arn:aws:sns:us-west-1:991583677268:db_team"
+        - !Ref SNSNotificationTopic
 
   WebEC202CPUUtilizationAlarm:
     Type: AWS::CloudWatch::Alarm
@@ -331,7 +331,7 @@ Resources:
           Value: 
             Ref: WebEC202
       AlarmActions:
-        - "arn:aws:sns:us-west-1:991583677268:db_team"
+        - !Ref SNSNotificationTopic
 
 Outputs:
   WEB01IP:
