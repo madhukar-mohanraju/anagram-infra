@@ -36,11 +36,11 @@ Mappings:
     COMMON:
       ImageId: ami-2cbda54c
       Name: US-WEST
-      HostedZoneId: Z2CINTWO5K698Y
+      HostedZoneId: Z1M9JT56IR86YU
     TEST:
       VpcId: vpc-57fd8230
       JenkinsSecGrpId: sg-2c11b154
-      #SSLCert: "arn:aws:acm:us-east-1:134955911718:certificate/52f00d2d-2edc-46b0-aaea-0c384154e47f"
+      SSLCert: "arn:aws:acm:us-west-1:142938387067:certificate/bb98d944-0fb6-4ac6-b4ee-6da028f0c038"
       SubnetIdPrivateA: subnet-1bb5867c
       SubnetIdPrivateB: subnet-a33e71f8
       SubnetIdPublicA: subnet-27b48740
@@ -51,7 +51,7 @@ Mappings:
     INTEG:
       VpcId: vpc-57fd8230
       JenkinsSecGrpId: sg-2c11b154
-      #SSLCert: "arn:aws:acm:us-east-1:134955911718:certificate/52f00d2d-2edc-46b0-aaea-0c384154e47f"
+      SSLCert: "arn:aws:acm:us-west-1:142938387067:certificate/bb98d944-0fb6-4ac6-b4ee-6da028f0c038"
       SubnetIdPrivateA: subnet-1bb5867c
       SubnetIdPrivateB: subnet-a33e71f8
       SubnetIdPublicA: subnet-27b48740
@@ -62,7 +62,7 @@ Mappings:
     PROD:
       VpcId: vpc-57fd8230
       JenkinsSecGrpId: sg-2c11b154
-      #SSLCert: "arn:aws:acm:us-east-1:134955911718:certificate/52f00d2d-2edc-46b0-aaea-0c384154e47f"
+      SSLCert: "arn:aws:acm:us-west-1:142938387067:certificate/bb98d944-0fb6-4ac6-b4ee-6da028f0c038"
       SubnetIdPrivateA: subnet-1bb5867c
       SubnetIdPrivateB: subnet-a33e71f8
       SubnetIdPublicA: subnet-27b48740
@@ -229,6 +229,20 @@ Resources:
       Port: 80
       Protocol: HTTP
 
+  WebELBHTTPSListener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties: 
+      Certificates:
+        - CertificateArn: !FindInMap [ !Ref Region, !Ref Environment, SSLCert ]
+      DefaultActions:
+        - Type: forward
+          TargetGroupArn:
+            !Ref WebELBTargetGroup
+      LoadBalancerArn: 
+        !Ref WebELB
+      Port: 443
+      Protocol: HTTPS
+
   WebELBTargetGroup:
     Type: AWS::ElasticLoadBalancingV2::TargetGroup
     Properties:
@@ -247,23 +261,21 @@ Resources:
           !Ref WebEC201
       - Id:
           !Ref WebEC202
-      VpcId:
-        !FindInMap [ !Ref Region, !Ref Environment, VpcId ]
+      VpcId: !FindInMap [ !Ref Region, !Ref Environment, VpcId ]
 
   # R53 dns endpoint
   R53DnsEndpoint:
     Type: AWS::Route53::RecordSet
-    Condition: CheckProdEnv
+    #Condition: CheckProdEnv
     Properties:
       Comment: "dns endpoint"
-      HostedZoneId: 
-        !FindInMap [ !Ref Region, COMMON, HostedZoneId ]
+      HostedZoneId: !FindInMap [ !Ref Region, COMMON, HostedZoneId ]
       Name: 
         Ref: DnsEndpoint
-      ResourceRecords:
-        - !GetAtt WebELB.DNSName
-      TTL: 100
-      Type: CNAME
+      Type: A
+      AliasTarget:
+        HostedZoneId: !GetAtt WebELB.CanonicalHostedZoneID
+        DNSName: !GetAtt WebELB.DNSName
 
   # SNS Topic
   SNSNotificationTopic:
@@ -316,8 +328,7 @@ Resources:
   WebEC202CPUUtilizationAlarm:
     Type: AWS::CloudWatch::Alarm
     Properties:
-      AlarmName: 
-        !Join [ "-", [ !Ref Environment, !Join [ "-",  [ !FindInMap [ !Ref Region, COMMON, Name ], "WEB02-EC2-CPU-ALERT" ] ] ] ]
+      AlarmName: !Join [ "-", [ !Ref Environment, !Join [ "-",  [ !FindInMap [ !Ref Region, COMMON, Name ], "WEB02-EC2-CPU-ALERT" ] ] ] ]
       ActionsEnabled: true
       Namespace: "AWS/RDS"
       MetricName: "CPUUtilization"
@@ -348,6 +359,6 @@ Outputs:
 
   R53DnsEndpoint:
     Description: AWS route53 DNS
-    Condition: CheckProdEnv
+    #Condition: CheckProdEnv
     Value: 
       Ref: R53DnsEndpoint
